@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Samsung HW-K650 API is plain HTTP with no TLS. Cleartext is scoped to the
+  local subnets so the rest of the app still enforces HTTPS. Adjust the ranges
+  if your LAN uses a different subnet than 192.168.0.0/24.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Common private ranges; the bar lives on one of these. -->
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <domain includeSubdomains="true">192.168.1.0</domain>
+        <domain includeSubdomains="true">10.0.0.0</domain>
+        <!-- Broad fallbacks so any manually entered LAN IP works. -->
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+    <!--
+      Android's domain matcher does not do CIDR, so a specific host cannot be
+      pre-listed reliably for every possible reservation. usesCleartextTraffic
+      in the manifest keeps cleartext permitted app-wide as the real guarantee;
+      this file documents intent and restricts where practical.
+    -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Stylised amber VU bars on the launcher -->
+    <path android:fillColor="#FFB000" android:pathData="M30,66h8v18h-8z" />
+    <path android:fillColor="#FFB000" android:pathData="M44,54h8v30h-8z" />
+    <path android:fillColor="#FFB000" android:pathData="M58,42h8v42h-8z" />
+    <path android:fillColor="#FFB000" android:pathData="M72,58h8v26h-8z" />
+</vector>
