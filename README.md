@@ -70,18 +70,34 @@ tools/
   k650_discover.py          # sonde des commandes supportées (stdlib seule)
 ```
 
-## Compiler
+## Récupérer l'APK (CI)
 
-Ouvrir le dossier dans **Android Studio** (Giraffe+), laisser Gradle
-synchroniser, puis *Run*. En ligne de commande, générer d'abord le wrapper si
-absent :
+Le plus simple, sans rien installer : l'APK **debug** est construit
+automatiquement par GitHub Actions (`.github/workflows/build-apk.yml`) à chaque
+push sur la branche.
+
+1. Onglet **Actions** du dépôt → run « Build APK » le plus récent.
+2. Section **Artifacts** en bas → télécharger **`k650-remote-debug-apk`**.
+3. Dézipper, transférer `app-debug.apk` sur le téléphone et l'installer
+   (autoriser « sources inconnues »).
+
+Le workflow se lance aussi à la main (bouton *Run workflow*). Sur un tag
+`vX.Y.Z`, l'APK est en plus attaché à une **Release** (lien de téléchargement
+direct et stable).
+
+## Compiler localement
+
+Le wrapper Gradle est fourni (`./gradlew`, Gradle 8.9) :
 
 ```bash
-gradle wrapper --gradle-version 8.9   # une seule fois, crée ./gradlew
 ./gradlew assembleDebug
+# APK -> app/build/outputs/apk/debug/app-debug.apk
 ```
 
-- `compileSdk` 34, `minSdk` 24, Kotlin + Jetpack Compose.
+Ou ouvrir le dossier dans **Android Studio** (Giraffe+), laisser Gradle
+synchroniser, puis *Run*.
+
+- `compileSdk` 34, `minSdk` 24, JDK 17, Kotlin + Jetpack Compose.
 
 ## Sonder le firmware avant d'ajouter des fonctions
 
