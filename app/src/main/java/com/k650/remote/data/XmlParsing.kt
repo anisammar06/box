@@ -64,13 +64,15 @@ class WamResponse private constructor(
                     }
                     XmlPullParser.END_TAG -> {
                         val name = parser.name?.lowercase()
-                        if (record != null && name == target) {
-                            out.add(record)
+                        val rec = record
+                        val key = childTag
+                        if (rec != null && name == target) {
+                            out.add(rec)
                             record = null
                             childTag = null
-                        } else if (record != null && name == childTag) {
+                        } else if (rec != null && key != null && name == key) {
                             val v = text.toString().trim()
-                            if (v.isNotEmpty()) record[name] = v
+                            if (v.isNotEmpty()) rec[key] = v
                             childTag = null
                             text.setLength(0)
                         }
