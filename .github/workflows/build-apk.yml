@@ -52,10 +52,20 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      # On a version tag (vX.Y.Z), also attach the APK to a GitHub Release so it
-      # has a stable, direct download link.
-      - name: Attach APK to release
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Publish a GitHub Release with a stable, direct download link.
+      # - on a version tag (vX.Y.Z): release named after the tag;
+      # - on a manual run (workflow_dispatch): release "v1.1" (tag created by the
+      #   action itself, so no tag push is required).
+      # A plain branch push does NOT create a release (avoids release spam).
+      - name: Publish APK release
+        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.1' }}
+          name: K650 Remote ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.1' }}
+          body: |
+            APK debug de K650 Remote, construit par CI.
+            Télécharger **app-debug.apk** ci-dessous, transférer sur le téléphone
+            et installer (autoriser les sources inconnues).
           files: app/build/outputs/apk/debug/app-debug.apk
+          fail_on_unmatched_files: true
