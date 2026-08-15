@@ -100,13 +100,22 @@ def probe_reads(host, port):
 
 
 def probe_previous_track(host, port):
-    """Fire each candidate and judge by whether title/artist actually changed."""
+    """Fire each candidate and judge by whether title/artist actually changed.
+
+    Research finding: NO dedicated previous-track command exists in any
+    reverse-engineered library. The app therefore wires "previous" to
+    SetSearchTime playtime=0 (restart current track). These probes let you
+    confirm whether any true-previous variant happens to work on your unit.
+    """
     print("\n== Probing 'previous track' candidates (state-diff judged) ==")
     candidates = [
+        # Generic trickmode previous (mirror of next; usually a no-op on K650):
+        ("UIC", '<name>SetTrickMode</name><p type="str" name="trickmode" val="previous"/>'),
+        # Restart-current-track, the app's actual "previous" behaviour:
+        ("UIC", '<name>SetSearchTime</name><p type="dec" name="playtime" val="0"/>'),
+        # Long-shot dedicated variants (not found in any library — likely ng):
         ("CPM", "<name>SetPreviousTrack</name>"),
         ("CPM", "<name>SetSkipPreviousTrack</name>"),
-        ("CPM", "<name>SetPrevTrack</name>"),
-        ("CPM", "<name>SetSkipBackwardTrack</name>"),
         # For reference / contrast, the known-good "next" (no param):
         ("CPM", "<name>SetSkipCurrentTrack</name>"),
     ]
@@ -129,16 +138,26 @@ def probe_advanced(host, port):
     """Read-only sonde of advanced settings before integrating any of them."""
     print("\n== Probing advanced settings (read-only) ==")
     probes = [
-        ("UIC", "<name>GetWooferLevel</name>"),
-        ("UIC", "<name>Get7bandEQMode</name>"),
-        ("UIC", "<name>Get7BandEQList</name>"),
-        ("UIC", "<name>GetCurrentEQMode</name>"),
+        # Device / network (used by the app for real reachability + Wi-Fi state)
+        ("UIC", "<name>GetMainInfo</name>"),
+        ("UIC", "<name>GetApInfo</name>"),
         ("UIC", "<name>GetSoftwareVersion</name>"),
-        ("UIC", "<name>GetLedStatus</name>"),
-        ("UIC", "<name>GetAutoUpdate</name>"),
+        ("UIC", "<name>GetPowerStatus</name>"),
+        # Sound
+        ("UIC", "<name>GetWooferLevel</name>"),
+        ("UIC", "<name>Get7bandEQList</name>"),
+        ("UIC", "<name>GetCurrentEQMode</name>"),
+        ("UIC", "<name>GetLed</name>"),
         ("UIC", "<name>GetSleepTimer</name>"),
-        ("UIC", "<name>GetAlarmInfo</name>"),
-        ("CPM", "<name>GetCurrentPlayTime</name>"),
+        ("UIC", "<name>GetRepeatMode</name>"),
+        ("UIC", "<name>GetShuffleMode</name>"),
+        ("UIC", "<name>GetCurrentPlayTime</name>"),
+        # Content-provider services (login/browse)
+        ('CPM', '<name>GetCpList</name><p type="dec" name="liststartindex" val="0"/>'
+                '<p type="dec" name="listcount" val="30"/>'),
+        ("CPM", "<name>GetCpInfo</name>"),
+        ('CPM', '<name>GetPresetList</name><p type="dec" name="startindex" val="0"/>'
+                '<p type="dec" name="listcount" val="30"/>'),
     ]
     for module, cmd in probes:
         ok, raw, err = call(host, port, module, cmd)

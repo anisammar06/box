@@ -20,26 +20,36 @@ données, pas éparpillée dans l'UI :
 | **Notifications empilées** : la barre renvoie parfois la réponse d'une requête précédente | `data/SoundbarRepository.kt` : chaque écriture attend ~600 ms puis **relit l'état réel** ; l'accusé n'est jamais cru |
 | **Timeout normal** (SetFunc vers une source déjà active ne répond pas) | `data/SoundbarApi.kt` : `ApiResult.Timeout` distinct d'`Error`, jamais traité comme une panne |
 | **Saut de piste** accepté uniquement **sans paramètre** | `SetSkipCurrentTrack` (les variantes `SetTrickMode` / `SetPlaybackControl val="next"` sont volontairement absentes) |
-| **Morceau précédent inconnu** | Bouton **grisé** (`Controls.kt`) — jamais un bouton sans effet |
+| **Morceau précédent : aucune commande dédiée n'existe** (confirmé par pywam, krygal, bacl) | Le bouton **redémarre le morceau courant** via `SetSearchTime playtime=0` (comportement d'une vraie télécommande) + tente `SetTrickMode previous` en secours — un effet réel, honnêtement libellé |
+| **Login des services en clair** sur le LAN (`SetSignIn`) | L'app **avertit explicitement** avant toute saisie d'identifiants |
 
-## Fonctionnalités
+## Interface — 5 onglets (look moderne, Material 3)
 
-- **Affichage matriciel ambré** reprenant la façade de la barre (source + volume).
-- **Now Playing** : titre / artiste / pochette (via `CPM GetRadioInfo`), halo ambré.
-- **VU-mètre style radio 90s** — *décoratif et assumé comme tel*. L'audio ne
-  transite ni par le téléphone ni par un serveur : aucun spectre réel n'existe.
-  L'animation est pilotée uniquement par des données réelles (volume, lecture/pause)
-  et une légende le dit explicitement.
-- **Transport** : play/pause, morceau suivant (précédent grisé).
-- **Volume** (0–30) optimiste + réconcilié par relecture, **mute**.
-- **Sources** : Wi-Fi · Bluetooth · AUX · HDMI · Optique (`d.in`) · TV SoundConnect.
-- **Raccourci « Bluetooth (YouTube) »** : YouTube/YT Music ne sont pas supportés
-  nativement ; la voie propre est le Bluetooth depuis le téléphone.
-- **« Lire une URL »** : `CPM SetUrlPlayback` pour vos flux HTTP (NAS, webradio,
-  TTS). *Ne pas* y injecter de flux YouTube extraits (contraire aux CGU YouTube).
-- **Services musicaux** : Spotify, TuneIn, Deezer, Qobuz, TIDAL affichés ;
-  Napster / JUKE / 7digital / Murfie masqués (morts/obsolètes).
-- **Réglages** : IP/port éditables (défaut `192.168.0.107:55001`).
+**Lecture** — afficheur matriciel ambré (source + volume), pochette + titre/artiste
+(`GetRadioInfo`), **barre de progression + seek** (`GetCurrentPlayTime` /
+`SetSearchTime`), transport complet (précédent / play-pause / suivant + **répétition**
+et **aléatoire**), volume 0–30 et mute, et le **VU-mètre 90s décoratif** (piloté
+uniquement par volume + lecture/pause, légende explicite — l'API ne renvoie aucun
+niveau réel).
+
+**Sources** — Wi-Fi · Bluetooth · AUX · HDMI · Optique (`d.in`) · TV SoundConnect,
+raccourci **Bluetooth**, **« Lire une URL »** (`SetUrlPlayback` UIC, pour NAS /
+webradio / TTS), et un encart honnête sur YouTube / Amazon Music (non natifs → BT).
+
+**Son** — **égaliseur** : presets 7 bandes lus du firmware (`Get7bandEQList` /
+`Set7bandEQMode`) ; **niveau du caisson** −6…+6 (`Set/GetWooferLevel`) ; note sur ce
+qui n'existe qu'en cloud SmartThings (mode nuit, DRC, dialogues, synchro audio).
+
+**Services** — liste réelle des services du firmware (`GetCpList`) avec statut de
+connexion ; **liaison de compte** Deezer / TIDAL / Qobuz (`SetCpService` + `SetSignIn`,
+avec **avertissement clair : identifiants en clair sur le LAN**) ; **navigation +
+lecture** (`GetCpSubmenu` / `SetSelectCpSubmenu` / `BrowseMain` / `SetPlaySelect`) ;
+Spotify identifié comme **renderer Spotify Connect** (piloté depuis l'app Spotify).
+
+**Réglages** — **vraie vérification réseau** (`GetMainInfo` → modèle + MAC,
+`GetApInfo` → SSID / RSSI / canal, `GetSoftwareVersion`), IP/port éditables,
+**alimentation & veille** (`SetSleepTimer` + minuteries 15/30/60 min ; l'allumage
+réseau n'est pas exposé par le firmware, l'app le dit), renommage de la barre.
 
 ## Réseau
 
@@ -56,19 +66,29 @@ app/src/main/java/com/k650/remote/
   MainActivity.kt
   data/
     UrlEncoding.kt          # %20 encoding (le piège principal)
-    Models.kt               # Source, MusicService, PlayStatus, SoundbarState…
-    XmlParsing.kt           # lecture tolérante des réponses UIC/CPM
-    SoundbarApi.kt          # client HTTP + commandes vérifiées
-    SoundbarRepository.kt   # quirk notifications: écrire → attendre → relire
+    Models.kt               # Source, MusicService, EqPreset, CpService, DeviceInfo, SoundbarState…
+    XmlParsing.kt           # lecture tolérante UIC/CPM : scalaires + listes (items())
+    SoundbarApi.kt          # client HTTP + toutes les commandes vérifiées (transport, EQ, CP, réseau)
+    SoundbarRepository.kt   # quirk notifications: écrire → attendre → relire ; parsing métier
     Settings.kt             # persistance IP/port
   ui/
-    SoundbarViewModel.kt    # état + sérialisation des commandes + polling
-    MainScreen.kt           # écran principal + dialogues
-    components/{MatrixDisplay,VuMeter,Controls}.kt
-    theme/Theme.kt          # panneau ambré sur noir
+    SoundbarViewModel.kt    # état + services + sérialisation des commandes + polling (core/statique)
+    MainScaffold.kt         # navigation à 5 onglets
+    screens/{NowPlaying,Sources,Sound,Services,Settings}Screen.kt, Dialogs.kt
+    components/{MatrixDisplay,VuMeter,Atoms}.kt
+    theme/{Theme,Color}.kt  # Material 3 sombre, ambre en accent
 tools/
   k650_discover.py          # sonde des commandes supportées (stdlib seule)
 ```
+
+## Bases de la recherche (reverse engineering vérifié)
+
+Toutes les commandes proviennent de bibliothèques open-source de reverse
+engineering, pas de suppositions : **Strixx76/pywam**, **krygal/samsung_multiroom**,
+**bacl/WAM_API_DOC**, **snowriderau/SamsungSoundbar**. Faits marquants :
+aucune vraie commande « précédent » n'existe ; aucune commande d'allumage réseau ;
+mode nuit/DRC/synchro sont côté cloud SmartThings seulement ; YouTube/Amazon absents
+du firmware.
 
 ## Récupérer l'APK (CI)
 
@@ -101,9 +121,10 @@ synchroniser, puis *Run*.
 
 ## Sonder le firmware avant d'ajouter des fonctions
 
-Plusieurs points restent ouverts (morceau précédent, niveau caisson, presets EQ,
-LED, minuterie, `GetCurrentPlayTime`…). **Ne rien coder à l'aveugle** : sonder
-d'abord avec la barre allumée.
+Les commandes sont désormais implémentées d'après le reverse engineering, mais leur
+support exact dépend du firmware de *votre* unité. **Ne rien supposer à l'aveugle** :
+confirmez sur la barre allumée (presets EQ réellement renvoyés, login d'un service,
+comportement du « précédent », etc.).
 
 ```bash
 python3 tools/k650_discover.py                 # lectures + tous les probes

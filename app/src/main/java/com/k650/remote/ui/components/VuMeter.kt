@@ -16,40 +16,43 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import com.k650.remote.ui.theme.Amber
-import com.k650.remote.ui.theme.AmberDim
+import com.k650.remote.ui.theme.OnInkFaint
+import com.k650.remote.ui.theme.Surface3
+import com.k650.remote.ui.theme.VuHigh
+import com.k650.remote.ui.theme.VuLow
+import com.k650.remote.ui.theme.VuMid
 import kotlin.math.abs
 import kotlin.math.sin
 
 /**
- * 90s-radio VU meter.
+ * 90s-radio VU meter — modernised (rounded segments, soft palette).
  *
- * HONESTY CONTRACT (from the brief): the audio never passes through the phone
- * or a server, and the API returns no levels — so there is NOTHING real to
- * measure. This animation is purely decorative and is driven ONLY by data we
- * genuinely have:
- *   - [active]  : bars move only while playback is actually PLAY;
- *   - [level]   : the overall envelope height scales with the real volume 0..1.
- * A caption states outright that it is decorative.
+ * HONESTY CONTRACT (unchanged): the audio never passes through the phone or a
+ * server and the API returns no levels, so there is NOTHING real to measure.
+ * The animation is decorative and driven ONLY by data we truly have:
+ *   - [active] : bars move only while playback is actually PLAY;
+ *   - [level]  : overall envelope scales with the real volume 0..1.
+ * The caption says so outright.
  */
 @Composable
 fun VuMeter(
     active: Boolean,
     level: Float,
     modifier: Modifier = Modifier,
-    bars: Int = 16,
+    bars: Int = 18,
 ) {
     val transition = rememberInfiniteTransition(label = "vu")
     val phase by transition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * Math.PI).toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "phase",
@@ -59,54 +62,51 @@ fun VuMeter(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(96.dp)
+                .height(84.dp)
         ) {
-            val gap = size.width * 0.012f
+            val gap = size.width * 0.014f
             val barWidth = (size.width - gap * (bars - 1)) / bars
             val envelope = level.coerceIn(0f, 1f)
+            val radius = CornerRadius(barWidth * 0.4f, barWidth * 0.4f)
 
             for (i in 0 until bars) {
-                // Deterministic pseudo-motion: layered sines per bar index. When
-                // inactive, bars fall to a flat idle floor scaled by volume.
                 val wobble = if (active) {
                     val a = sin(phase * 1.3f + i * 0.7f)
                     val b = sin(phase * 2.1f + i * 1.9f)
-                    (0.55f + 0.45f * abs(a * 0.6f + b * 0.4f))
-                } else {
-                    0.12f
-                }
-                val h = (size.height * envelope.coerceAtLeast(0.05f) * wobble)
-                    .coerceIn(size.height * 0.04f, size.height)
+                    0.5f + 0.5f * abs(a * 0.6f + b * 0.4f)
+                } else 0.1f
+                val h = (size.height * envelope.coerceAtLeast(0.06f) * wobble)
+                    .coerceIn(size.height * 0.05f, size.height)
 
                 val x = i * (barWidth + gap)
-                // dim base column
-                drawRect(
-                    color = AmberDim,
+                drawRoundRect(
+                    color = Surface3,
                     topLeft = Offset(x, 0f),
                     size = Size(barWidth, size.height),
+                    cornerRadius = radius,
                 )
-                // lit portion, green→amber→red gradient by height like a real VU
-                drawRect(
+                drawRoundRect(
                     color = barColor(h / size.height),
                     topLeft = Offset(x, size.height - h),
                     size = Size(barWidth, h),
+                    cornerRadius = radius,
                 )
             }
         }
         Text(
-            text = "VU-mètre décoratif — l'API ne fournit aucun niveau réel",
-            color = Amber.copy(alpha = 0.5f),
-            fontSize = 10.sp,
+            text = "VU-mètre décoratif — l'API de la barre ne fournit aucun niveau réel",
+            style = MaterialTheme.typography.labelSmall,
+            color = OnInkFaint,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp),
+                .padding(top = 8.dp),
         )
     }
 }
 
 private fun barColor(fraction: Float): Color = when {
-    fraction > 0.85f -> Color(0xFFE53935) // red peaks
-    fraction > 0.6f -> Color(0xFFFFB000)  // amber
-    else -> Color(0xFF7CB342)             // green
+    fraction > 0.85f -> VuHigh
+    fraction > 0.55f -> VuMid
+    else -> VuLow
 }
